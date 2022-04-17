@@ -55,13 +55,15 @@ class BandcampDL():
         self.__get_html()
         self.__parse_album_info()
         self.__parse_track_urls()
+        if not os.path.exists("./Music"):
+            os.mkdir("./Music")
         if not os.path.exists("./{}".format(self.artist)):
-            os.mkdir("./{}".format(self.artist))
+            os.mkdir("./Music/{}".format(self.artist))
         if not os.path.exists("./{}/{}".format(self.artist, self.album)):
-            os.mkdir("./{}/{}".format(self.artist, self.album))
+            os.mkdir("./Music/{}/{}".format(self.artist, self.album))
         for t in self.tracks:
             data = requests.get(t["url"])
-            with open("./{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
+            with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
                 file.write(data.content)
 
 if __name__ == '__main__':
