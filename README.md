@@ -1,5 +1,5 @@
 # Bandcamp Album Downloader
-Quick and easy python script for downloading bandcamp albums.
+A quick and easy python script for downloading bandcamp albums.
 
 ## Requirements
 - python3
@@ -9,8 +9,8 @@ python3 -m pip install requests
 ```
 
 ## Downloading Albums
-- Copy the bandcamp album url which will look like __https://artistname.bandcamp.com/album/albumname__
-- Run the script, providing the album url as an argument:
+- Copy a bandcamp album url which will look like __https://artistname.bandcamp.com/album/albumname__
+- Run the script with the album url as an argument:
 ```shell
 ./bandcampdl.py https://artistname.bandcamp.com/album/albumname
 ```
