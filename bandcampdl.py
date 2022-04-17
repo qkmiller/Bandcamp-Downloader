@@ -8,7 +8,8 @@ class BandcampDL():
         self.album = ""
         self.artist = ""
         self.tracks = []
-        self.url = ""
+        self.album_url = ""
+        self.cover_art_url = ""
         self.html = []
 
 
@@ -24,6 +25,9 @@ class BandcampDL():
                 info = self.html[i].split("content=\"")[1].split("\"")[0].split(", by ")
                 self.album = self.__filter_name(info[0])
                 self.artist = self.__filter_name(info[1])
+            if self.html[i].startswith("            <a class=\"popupImage\""):
+                self.cover_art_url = self.html[i].split("href=\"")[1].split("\">")[0]
+                print(self.cover_art_url)
                 break
             i += 1
 
@@ -42,16 +46,16 @@ class BandcampDL():
             i += 1
 
     def __get_html(self):
-        response = requests.get(self.url)
+        response = requests.get(self.album_url)
         if response.status_code != 200:
-            raise Exception("Status code {}: {}".format(response.status_code, self.url))
+            raise Exception("Status code {}: {}".format(response.status_code, self.album_url))
         self.html = response.text.split('\n')
 
     def __filter_name(self, name):
         return re.sub("[~\"#%&*:<>?/\\{|}]+", '_', name)
 
     def get_album(self, album_url):
-        self.url = album_url
+        self.album_url = album_url
         self.__get_html()
         self.__parse_album_info()
         self.__parse_track_urls()
@@ -61,10 +65,13 @@ class BandcampDL():
             os.mkdir("./Music/{}".format(self.artist))
         if not os.path.exists("./{}/{}".format(self.artist, self.album)):
             os.mkdir("./Music/{}/{}".format(self.artist, self.album))
+        cover_art_data = requests.get(self.cover_art_url)
+        with open("./Music/{}/{}/cover.jpg".format(self.artist, self.album), 'wb') as file:
+            file.write(cover_art_data.content)
         for t in self.tracks:
-            data = requests.get(t["url"])
+            track_data = requests.get(t["url"])
             with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
-                file.write(data.content)
+                file.write(track_data.content)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
