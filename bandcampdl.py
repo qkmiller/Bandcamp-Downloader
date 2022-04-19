@@ -27,7 +27,6 @@ class BandcampDL():
                 self.artist = self.__filter_name(info[1])
             if self.html[i].startswith("            <a class=\"popupImage\""):
                 self.cover_art_url = self.html[i].split("href=\"")[1].split("\">")[0]
-                print(self.cover_art_url)
                 break
             i += 1
 
@@ -40,8 +39,7 @@ class BandcampDL():
         track_urls = mp3_script.split("{&quot;mp3-128&quot;:&quot;")[1:]
         i = 0
         while i < len(track_urls):
-            url = track_urls[i].split('&quot;}')[0].split('?')
-            url = url[0] + "?token=" + url[1].split("token=")[1]
+            url = track_urls[i].split('&quot;}')[0].replace('amp;', '')
             self.tracks[i] = {"title": self.tracks[i], "url": url}
             i += 1
 
@@ -61,14 +59,15 @@ class BandcampDL():
         self.__parse_track_urls()
         if not os.path.exists("./Music"):
             os.mkdir("./Music")
-        if not os.path.exists("./{}".format(self.artist)):
+        if not os.path.exists("./Music/{}".format(self.artist)):
             os.mkdir("./Music/{}".format(self.artist))
-        if not os.path.exists("./{}/{}".format(self.artist, self.album)):
+        if not os.path.exists("./Music/{}/{}".format(self.artist, self.album)):
             os.mkdir("./Music/{}/{}".format(self.artist, self.album))
         cover_art_data = requests.get(self.cover_art_url)
         with open("./Music/{}/{}/cover.jpg".format(self.artist, self.album), 'wb') as file:
             file.write(cover_art_data.content)
         for t in self.tracks:
+            print("Downloading {}".format(t["title"]))
             track_data = requests.get(t["url"])
             with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
                 file.write(track_data.content)
