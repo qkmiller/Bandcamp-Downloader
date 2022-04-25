@@ -101,7 +101,6 @@ class BandcampDL():
         else:
             self.__print("Some tracks in this album aren't available. Skipping...", "red")
 
-
     def get(self, resource, file=False):
         if file:
             with open(resource, 'r') as album_list:
@@ -120,7 +119,6 @@ class BandcampDL():
             else:
                 self.__print("Invalid album URL: {}".format(resource), "red")
                 exit(1)
-
 
     def __is_album(self, url):
         urlchars = "[a-zA-Z0-9_\-*()+,;'&$!@\[\]#?/:~=%.]"
