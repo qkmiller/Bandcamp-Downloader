@@ -13,6 +13,17 @@ class BandcampDL():
         self.cover_art_url = ""
         self.html = []
 
+    def __print(self, string, color):
+        key = { "reset": "\033[0m",
+                "red": "\033[31m", 
+                "green": "\033[32m", 
+                "yellow": "\033[33m", 
+                "blue": "\033[34m", 
+                "magenta": "\033[35m", 
+                "cyan": "\033[36m" 
+                }
+        print("{}{}{}".format(key[color], string, key["reset"]))
+
     def __unescape(self, s):
         return html.unescape(html.unescape(s))
 
@@ -41,11 +52,14 @@ class BandcampDL():
                 mp3_script = i
                 break
         track_urls = mp3_script.split("{&quot;mp3-128&quot;:&quot;")[1:]
+        if len(track_urls) != len(self.tracks):
+            return(False)
         i = 0
         while i < len(track_urls):
             url = track_urls[i].split('&quot;}')[0].replace('amp;', '')
             self.tracks[i] = {"title": self.tracks[i], "url": url}
             i += 1
+        return(True)
 
     def __get_html(self):
         response = requests.get(self.album_url)
@@ -57,7 +71,7 @@ class BandcampDL():
         key = {'&': 'and', 
                '+': 'plus',
                '=': 'equals',
-               '/': ' ',
+               '/': ' and ',
                '|': ' ',
                ':': '-'
                }
@@ -69,21 +83,23 @@ class BandcampDL():
         self.album_url = album_url
         self.__get_html()
         self.__parse_album_info()
-        self.__parse_track_urls()
-        if not os.path.exists("./Music"):
-            os.mkdir("./Music")
-        if not os.path.exists("./Music/{}".format(self.artist)):
-            os.mkdir("./Music/{}".format(self.artist))
-        if not os.path.exists("./Music/{}/{}".format(self.artist, self.album)):
-            os.mkdir("./Music/{}/{}".format(self.artist, self.album))
-        cover_art_data = requests.get(self.cover_art_url)
-        with open("./Music/{}/{}/cover.jpg".format(self.artist, self.album), 'wb') as file:
-            file.write(cover_art_data.content)
-        for t in self.tracks:
-            print("Downloading track: {}".format(t["title"]))
-            track_data = requests.get(t["url"])
-            with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
-                file.write(track_data.content)
+        if self.__parse_track_urls():
+            if not os.path.exists("./Music"):
+                os.mkdir("./Music")
+            if not os.path.exists("./Music/{}".format(self.artist)):
+                os.mkdir("./Music/{}".format(self.artist))
+            if not os.path.exists("./Music/{}/{}".format(self.artist, self.album)):
+                os.mkdir("./Music/{}/{}".format(self.artist, self.album))
+            cover_art_data = requests.get(self.cover_art_url)
+            with open("./Music/{}/{}/cover.jpg".format(self.artist, self.album), 'wb') as file:
+                file.write(cover_art_data.content)
+            for t in self.tracks:
+                self.__print("Downloading track: {}".format(t["title"]), "green")
+                track_data = requests.get(t["url"])
+                with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
+                    file.write(track_data.content)
+        else:
+            self.__print("Some tracks in this album aren't available. Skipping...", "red")
 
 
     def get(self, resource, file=False):
@@ -91,17 +107,18 @@ class BandcampDL():
             with open(resource, 'r') as album_list:
                 for album in album_list:
                     if self.__is_album(album):
-                        print("Downloading album: {}".format(album.replace('\n', '')))
+                        self.__print("Downloading album: {}".format(album.replace('\n', '')), "yellow")
                         self.__get_album(album.replace('\n', ''))
                         self.__init__()
                     else:
-                        print("Invalid album URL: {}".format(album))
+                        self.__print("Invalid album URL: {}".format(album), "red")
                         exit(1)
         else:
             if self.__is_album(resource):
+                self.__print("Downloading album: {}".format(resource), "yellow")
                 self.__get_album(resource)
             else:
-                print("Invalid album URL: {}".format(resource))
+                self.__print("Invalid album URL: {}".format(resource), "red")
                 exit(1)
 
 
