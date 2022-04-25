@@ -15,7 +15,17 @@ python3 -m pip install requests
 ./bandcampdl.py https://artistname.bandcamp.com/album/albumname
 ```
 - The album will be saved to ```./artist/albumname``` located in your current working directory (the directory you were in when you ran the script).
-- Enjoy!
+
+## Downloading Multiple Albums
+- You can also download multiple albums by running the script with ```-f```.
+- Create a new file then paste each album URL on a new line.
+- Provide the file path as an argument to the -f flag:
+```shell
+./python3 bandcampdl.py -f albumlist.txt
+```
+
+## Issues
+- If the album contains tracks that are unavailable for streaming, the whole album will be skipped.
 
 ## License
 Copyright (c) 2022 Quinn Miller
