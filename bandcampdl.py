@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import requests
+import html
 
 class BandcampDL():
     def __init__(self):
@@ -12,6 +13,8 @@ class BandcampDL():
         self.cover_art_url = ""
         self.html = []
 
+    def __unescape(self, s):
+        return html.unescape(html.unescape(s))
 
     def __parse_album_info(self):
         i = 0
@@ -19,12 +22,13 @@ class BandcampDL():
             if self.html[i].startswith("    <meta name=\"description\""):
                 j = i + 3
                 while self.html[j] != "":
-                    self.tracks.append(self.__filter_name(' '.join(self.html[j].split(" ")[1:])))
+                    title_raw = ' '.join(self.html[j].split(" ")[1:])
+                    self.tracks.append(self.__filter_name(self.__unescape(title_raw)))
                     j += 1
             if self.html[i].startswith("        <meta name=\"title\""):
                 info = self.html[i].split("content=\"")[1].split("\"")[0].split(", by ")
-                self.album = self.__filter_name(info[0])
-                self.artist = self.__filter_name(info[1])
+                self.album = self.__filter_name(self.__unescape(info[0]))
+                self.artist = self.__filter_name(self.__unescape(info[1]))
             if self.html[i].startswith("            <a class=\"popupImage\""):
                 self.cover_art_url = self.html[i].split("href=\"")[1].split("\">")[0]
                 break
@@ -50,9 +54,18 @@ class BandcampDL():
         self.html = response.text.split('\n')
 
     def __filter_name(self, name):
-        return re.sub("[~\"#%&*:<>?/\\{|}]+", '_', name)
+        key = {'&': 'and', 
+               '+': 'plus',
+               '=': 'equals',
+               '/': ' ',
+               '|': ' ',
+               ':': '-'
+               }
+        for k, v in key.items():
+            name = name.replace(k, v)
+        return re.sub("[~\"#%*<>?\\{}]", '', name)
 
-    def get_album(self, album_url):
+    def __get_album(self, album_url):
         self.album_url = album_url
         self.__get_html()
         self.__parse_album_info()
@@ -67,17 +80,40 @@ class BandcampDL():
         with open("./Music/{}/{}/cover.jpg".format(self.artist, self.album), 'wb') as file:
             file.write(cover_art_data.content)
         for t in self.tracks:
-            print("Downloading {}".format(t["title"]))
+            print("Downloading track: {}".format(t["title"]))
             track_data = requests.get(t["url"])
             with open("./Music/{}/{}/{}.mp3".format(self.artist, self.album, t["title"]), 'wb') as file:
                 file.write(track_data.content)
 
+
+    def get(self, resource, file=False):
+        if file:
+            with open(resource, 'r') as album_list:
+                for album in album_list:
+                    if self.__is_album(album):
+                        print("Downloading album: {}".format(album.replace('\n', '')))
+                        self.__get_album(album.replace('\n', ''))
+                        self.__init__()
+                    else:
+                        print("Invalid album URL: {}".format(album))
+                        exit(1)
+        else:
+            if self.__is_album(resource):
+                self.__get_album(resource)
+            else:
+                print("Invalid album URL: {}".format(resource))
+                exit(1)
+
+
+    def __is_album(self, url):
+        urlchars = "[a-zA-Z0-9_\-*()+,;'&$!@\[\]#?/:~=%.]"
+        if re.match("https:\/\/{}*\.bandcamp\.com\/album\/{}*".format(urlchars, urlchars), url):
+            return True
+        return False
+
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Missing 1 argument. Please provide a bandcamp album link")
-        exit(1)
-    if re.match("https:\/\/\w*\.bandcamp\.com\/album\/\w*", sys.argv[1]) is None:
-        print("Please provide a valid bandcamp album link")
-        exit(1)
     bcdl = BandcampDL()
-    bcdl.get_album(sys.argv[1])
+    if (sys.argv[1] == '-f'):
+        bcdl.get(sys.argv[2], file=True)
+    else:
+        bcdl.get(sys.argv[1])
