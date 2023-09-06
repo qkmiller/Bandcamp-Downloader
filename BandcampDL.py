@@ -1,7 +1,8 @@
+import html
 import os
 import re
 import requests
-import html
+import sys
 
 
 class BandcampDL():
@@ -20,38 +21,29 @@ class BandcampDL():
         self.cover_art_url = ""
         self.html = []
 
-# def __print(self, string, color):
-#     key = {"reset": "",
-#            "red": "",
-#            "green": "\033[32m",
-#            "yellow": "\033[33m",
-#            "blue": "\033[34m",
-#            "magenta": "\033[35m",
-#            "cyan":
-#            }
-#     print("{}{}{}".format(key[color], string, key["reset"]))
-
     def __unescape(self, s):
         return html.unescape(html.unescape(s))
 
     def __parse_album_info(self):
         i = 0
         while i < len(self.html):
-            if self.html[i].startswith("    <meta name=\"description\""):
+            if "<meta name=\"description\"" in self.html[i]:
                 j = i + 3
                 while self.html[j] != "":
                     title_raw = ' '.join(self.html[j].split(" ")[1:])
                     title = self.__filter_name(self.__unescape(title_raw))
                     self.tracks.append(title)
                     j += 1
-            if self.html[i].startswith("        <meta name=\"title\""):
+            if "<meta name=\"title\"" in self.html[i]:
                 info = self.html[i].split("content=\"")
                 info = info[1].split("\"")[0].split(", by ")
                 self.album = self.__filter_name(self.__unescape(info[0]))
                 self.artist = self.__filter_name(self.__unescape(info[1]))
-            if self.html[i].startswith("            <a class=\"popupImage\""):
+            if "class=\"popupImage\"" in self.html[i]:
                 cover_art = self.html[i].split("href=\"")[1].split("\">")[0]
+                print("Cover art: " + cover_art)
                 self.cover_art_url = cover_art
+
                 break
             i += 1
 
@@ -90,7 +82,7 @@ class BandcampDL():
             name = name.replace(k, v)
         return re.sub("[~\"#%*<>?\\{}]", '', name)
 
-    def __check_path(self):
+    def __check_music_path(self):
         if not os.path.exists("./Music"):
             os.mkdir("./Music")
         if not os.path.exists("./Music/{}".format(self.artist)):
@@ -115,7 +107,7 @@ class BandcampDL():
                 print("\033[36mDone!\033[0m")
 
     def __get_album(self, album_url):
-        self.__check_path()
+        self.__check_music_path()
         cover_art_data = requests.get(self.cover_art_url)
         cover_art_path = "./Music/{}/{}/cover.jpg".format(self.artist,
                                                           self.album)
@@ -125,28 +117,39 @@ class BandcampDL():
             self.__get_track(t["title"], t["url"])
 
     def get_from_file(self, file):
-        with open(file, 'r') as album_list:
-            for album in album_list:
-                if self.__is_album(album):
-                    self.album_url = album.replace('\n', '')
-                    print(self.message["dl_album"].format(self.album_url))
-                    self.__get_html()
-                    self.__parse_album_info()
-                    has_tracks = self.__parse_track_urls()
-                    if has_tracks:
-                        self.__get_album(self.album_url)
-                    else:
-                        print(self.message["unavailable"])
-                    # self.__get_album()
-                    self.__init__()
-                else:
-                    print(self.message["invalid"].format(album))
-                    exit(1)
+        print("Getting urls from", file)
+        file = open(file, "r")
+        url_list = file.readlines()
+        for url in url_list:
+            print(url)
+            if not self.__is_album(url):
+                print(self.message["invalid"].format(url))
+                exit(1)
+        for url in url_list:
+            print(url)
+            self.album_url = url.replace('\n', '')
+            print(self.message["dl_album"].format(self.album_url))
+            self.__get_html()
+            self.__parse_album_info()
+            has_tracks = self.__parse_track_urls()
+            if has_tracks:
+                self.__get_album(self.album_url)
+            else:
+                print(self.message["Album is unavailable"])
+            self.__init__()
 
     def get_from_url(self, url):
         if self.__is_album(url):
             print(self.message["dl_album"].format(url))
-            self.__get_album(url)
+            self.album_url = url.replace('\n', '')
+            self.__get_html()
+            self.__parse_album_info()
+            has_tracks = self.__parse_track_urls()
+            if has_tracks:
+                self.__get_album(self.album_url)
+            else:
+                print(self.message["Album is unavailable"])
+            self.__init__()
         else:
             print(self.message["invalid"].format(url))
             exit(1)
@@ -160,16 +163,12 @@ class BandcampDL():
 
 
 if __name__ == '__main__':
-    import sys
-
     bcdl = BandcampDL()
-
     def usage():
         print("Bandcamp album downloader")
         print("Usage:")
-        print("./python3 bandcampdl.py [album url]")
-        print("./python3 bandcampdl.py -f [file]")
-
+        print("./python3 bandcampdl.py [album URL]")
+        print("./python3 bandcampdl.py -f [file containing multiple URLs]")
     if (len(sys.argv) < 2 or len(sys.argv) > 3):
         usage()
     elif (sys.argv[1] == '-h'):
