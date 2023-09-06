@@ -1,5 +1,5 @@
 # Bandcamp Album Downloader
-A quick and easy python script for downloading bandcamp albums.
+A quick and easy python script for downloading albums from Bandcamp.
 
 ## Requirements
 - python3
@@ -8,24 +8,28 @@ A quick and easy python script for downloading bandcamp albums.
 python3 -m pip install requests
 ```
 
-## Downloading Albums
-- Copy a bandcamp album url which will look like __https://artistname.bandcamp.com/album/albumname__
+## Download an album
 - Run the script with the album url as an argument:
 ```shell
-./bandcampdl.py https://artistname.bandcamp.com/album/albumname
+python3 bandcampdl.py https://artistname.bandcamp.com/album/ALBUMNAME
 ```
-- The album will be saved to ```./artist/albumname``` located in your current working directory (the directory you were in when you ran the script).
+- The album will be saved to ```./Music/artist/ALBUMNAME``` located in your current working directory (the directory you were in when you ran the script).
 
-## Downloading Multiple Albums
-- You can also download multiple albums by running the script with ```-f```.
+## Download multiple albums
 - Create a new file then paste each album URL on a new line.
-- Provide the file path as an argument to the -f flag:
+- Provide the file path as an argument to the ```-f``` flag:
 ```shell
-./python3 bandcampdl.py -f albumlist.txt
+python3 bandcampdl.py -f albumlist.txt
+```
+
+## Download an artist's discography
+- Provide the artist's bandcamp URL as an argument to the -a flag:
+```shell
+python3 bandcampdl.py -a https://ARTISTNAME.bandcamp.com
 ```
 
 ## Issues
-- If the album contains tracks that are unavailable for streaming, the whole album will be skipped.
+- If an album contains tracks that are unavailable for streaming, the whole album will be skipped.
 
 ## License
 Copyright (c) 2022 Quinn Miller
