@@ -33,7 +33,7 @@ class BandcampDL():
                  "invalid_artist":   "\033[31mInvalid artist URL: {}\033[0m",
                  "unavailable":      "\033[31mResource unavailable: {}\033[0m",
                  "dl_album":         "*\033[33mDownloading album: {}...\033[0m",
-                 "downloading":       "--\033[33mDownloading: {}.mp3...\033[0m",
+                 "downloading":       "--\033[33mDownloading: {}...\033[0m",
                  "write_error":      "\033[31mError writing to {}\033[0m",
                  "done":             "\033[36mDone!\033[0m", 
                  "abort":            "\033[31mAborting!\033[0m",
