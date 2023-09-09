@@ -1,9 +1,12 @@
+import argparse
+import textwrap
 import html
 import json
 import os
 import re
 import requests
 import sys
+
 
 class Track():
     def __init__(self):
@@ -68,7 +71,6 @@ class BandcampDL():
         print("\b" + self.__message["done"])
 
 
-
     def __build_album(self, html):
         if self.wait:
             self.__wait()
@@ -126,12 +128,12 @@ class BandcampDL():
         return album_urls
 
 
-    def __get_albums(self, music_path="./Music"):
-        if not os.path.exists(music_path):
-            os.mkdir(music_path)
+    def __get_albums(self, out_path="./Music"):
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
         for album in self.albums:
             print(self.__message["dl_album"].format(album.title))
-            artist_path = "{}/{}".format(music_path, album.artist)
+            artist_path = "{}/{}".format(out_path, album.artist)
             album_path = "{}/{}".format(artist_path, album.title)
             if not os.path.exists(artist_path):
                 os.mkdir(artist_path)
@@ -178,7 +180,7 @@ class BandcampDL():
                 print(self.__message["done"])
 
 
-    def get_from_list(self, url_list):
+    def get_from_list(self, url_list, out_path):
         for url in url_list:
             self.__is_album(url)
         self.__wait_start("building")
@@ -190,32 +192,50 @@ class BandcampDL():
         self.__get_albums()
 
 
-    def get_from_url(self, url):
-        url = url.replace('\n', '')
-        self.__is_album(url)
-        html = self.__get_html(url)
-        self.__build_album(html)
-        self.__get_albums()
-
-
-    def get_from_artist(self, url):
+    def get_from_artist(self, url, out_path):
         self.__is_artist(url)
         html = self.__get_html(url)
         album_urls = self.__get_album_urls(url, html)
-        self.get_from_list(album_urls)
+        self.get_from_list(album_urls, out_path)
 
             
 if __name__ == '__main__':
-    bcdl = BandcampDL()
-    if (len(sys.argv) < 2 or len(sys.argv) > 3):
-        bcdl.usage()
-    elif (sys.argv[1] == '-h'):
-        bcdl.usage()
-    elif (sys.argv[1] == '-f'):
-        print("Getting urls from", sys.argv[2])
-        url_list = open(sys.argv[2], "r").readlines()
-        bcdl.get_from_list(url_list)
-    elif (sys.argv[1] == '-a'):
-        bcdl.get_from_artist(sys.argv[2])
-    else:
-        bcdl.get_from_url(sys.argv[1])
+    example_1 = "python3 bandcampdl.py https://ARTISTNAME.bandcamp.com/album/ALBUMNAME"
+    example_2 = "python3 bandcampdl.py -a https://ARTISTNAME.bandcamp.com"
+    example_3 = "python3 bandcampdl.py -f albumlist.txt -o ~/Music"
+    examples = "Examples:\n  {}\n  {}\n  {}".format(example_1, 
+                                                    example_2, 
+                                                    example_3)
+    parser = argparse.ArgumentParser(prog="bandcampdl",
+                                     description="Downloads albums from Bandcamp",
+                                     epilog=examples,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("url", type=str, metavar="<ALBUM_URL>", nargs="?", help="URL for a specific Bandcamp album")
+    group.add_argument("-f", "--file",
+                        type=str,
+                        metavar="<FILE>",
+                        help="file containing multiple Bandcamp album URLs")
+    group.add_argument("-a", "--artist",
+                       type=str,
+                       metavar="<ARTIST_URL>",
+                       help="Bandcamp URL for an artist, download all albums by artist")
+    parser.add_argument("-o", "--out",
+                        nargs="?",
+                        type=str,
+                        metavar="<PATH>",
+                        default="./Music",
+                        help="""base path to save albums into.
+                        Files will be saved in the following format:
+                        <PATH>/artist/album""")
+    args = parser.parse_args()
+
+    if (args.url):
+        BandcampDL().get_from_list([args.url], args.out)
+    if (args.file):
+        print("Getting urls from", args.file)
+        url_list = open(args.file, "r").readlines()
+        BandcampDL().get_from_list(url_list, args.out)
+    if (args.artist):
+        BandcampDL().get_from_artist(args.artist, args.out)
+    exit(0)
