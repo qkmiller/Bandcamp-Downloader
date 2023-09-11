@@ -1,43 +1,39 @@
 import argparse
-import textwrap
 import html
 import json
 import os
 import re
 import requests
 import sys
-import threading
-import time
 
 
 class Track():
     def __init__(self):
-        self.title = ""
-        self.url = ""
+        self.title =    ""
+        self.url =      ""
 
 
 class Album():
     def __init__(self):
-        self.artist = ""
-        self.art_url = ""
-        self.title = ""
-        self.tracks = []
+        self.artist =   ""
+        self.art_url =  ""
+        self.title =    ""
+        self.tracks =   []
 
 
 class BandcampDL():
     __url_reg =     r"[a-zA-Z0-9_\-*()+,;'&$!@\[\]#?\/:~=%.]*"
     __artist_reg =  r"https:\/\/" + __url_reg + r"\.bandcamp\.com[\/]?$"
     __album_reg =   __artist_reg[:-6] + r"\/album\/" + __url_reg + r"[\/]?$"
-
-    __message = {"invalid_album":    "\033[31mInvalid album URL: {}\033[0m",
-                 "invalid_artist":   "\033[31mInvalid artist URL: {}\033[0m",
-                 "unavailable":      "\033[31mResource unavailable: {}\033[0m",
-                 "dl_album":         "*\033[33mDownloading album: {}...\033[0m",
-                 "downloading":       "--\033[33mDownloading: {}...\033[0m",
-                 "write_error":      "\033[31mError writing to {}\033[0m",
-                 "done":             "\033[36mDone!\033[0m", 
-                 "abort":            "\033[31mAborting!\033[0m",
-                 "building":         "\033[33mBuilding albums...\033[0m"}
+    __message = {"invalid_album":   "\033[31mInvalid album URL: {}\033[0m",
+                 "invalid_artist":  "\033[31mInvalid artist URL: {}\033[0m",
+                 "unavailable":     "\033[31mResource unavailable: {}\033[0m",
+                 "dl_album":        "*\033[33mStarting album: {}...\033[0m",
+                 "downloading":     "--\033[33mDownloading: {}...\033[0m",
+                 "write_error":     "\033[31mError writing to {}\033[0m",
+                 "done":            "\033[36mDone!\033[0m", 
+                 "abort":           "\033[31mAborting!\033[0m",
+                 "building":        "\033[33mBuilding albums...\033[0m"}
 
     __filter_map = {'&': 'and', 
                     '+': 'plus',
@@ -46,14 +42,15 @@ class BandcampDL():
                     '|': ' ',
                     ':': '-'}
 
-    __wait_sequence = {"-":    "\\",
-                       "\\":   "|",
-                       "|":    "/",
-                       "/":    "-"}
+    __wait_sequence = {"-":     "\\",
+                       "\\":    "|",
+                       "|":     "/",
+                       "/":     "-"}
 
 
-    def __init__(self):
+    def __init__(self, silent=False):
         self.albums = []
+        self.silent = silent
 
 
     def __build_album(self, html):
@@ -63,10 +60,14 @@ class BandcampDL():
             if album.art_url == "":
                 if "class=\"popupImage\"" in line:
                     album.art_url = line.split("href=\"")[1].split("\">")[0]
+                    if album_json is not None:
+                        break
             if album_json is None:
                 if line.find("<script") != -1 and line.find('mp3-128') != -1:
                     line = line.split("data-tralbum=\"")[1].split("\"")[0].replace("&quot;", "\"")
                     album_json = json.loads(line)
+                    if album.art_url != "":
+                        break
         album.artist = self.__filter(album_json["artist"])
         album.title = self.__filter(album_json["current"]["title"])
         for t in album_json["trackinfo"]:
@@ -104,7 +105,8 @@ class BandcampDL():
         if not os.path.exists(out_path):
             os.mkdir(out_path)
         for album in self.albums:
-            print(self.__message["dl_album"].format(album.title))
+            if not self.silent:
+                print(self.__message["dl_album"].format(album.title))
             artist_path = "{}/{}".format(out_path, album.artist)
             album_path = "{}/{}".format(artist_path, album.title)
             if not os.path.exists(artist_path):
@@ -133,10 +135,12 @@ class BandcampDL():
 
 
     def __download(self, path, url, name):
-        print(self.__message["downloading"].format(name), end='', flush=True)
+        if not self.silent:
+            print(self.__message["downloading"].format(name), end='', flush=True)
         res = requests.get(url)
         if res.status_code != 200:
-            print("\n", self.__message["unavailable"].format(url))
+            if not self.silent:
+                print("\n", self.__message["unavailable"].format(url))
             return
         with open(path, 'wb') as file:
             try:
@@ -144,7 +148,8 @@ class BandcampDL():
             except IOError:
                 print("\n", self.__message["write_error"].format(path))
             finally:
-                print(self.__message["done"])
+                if not self.silent:
+                    print(self.__message["done"])
 
 
     def __waiting(self, wait_char):
@@ -155,13 +160,16 @@ class BandcampDL():
     def get_from_list(self, url_list, out_path):
         for url in url_list:
             self.__is_album(url)
-        wait_char = "-"
-        print(self.__message["building"] + wait_char, end='', flush=True)
+        if not self.silent:
+            wait_char = "-"
+            print(self.__message["building"] + wait_char, end='', flush=True)
         for url in url_list:
-            wait_char = self.__waiting(wait_char)
+            if not self.silent:
+                wait_char = self.__waiting(wait_char)
             html = self.__get_html(url)
             self.__build_album(html)
-        print("\b" + self.__message["done"])
+        if not self.silent:
+            print("\b" + self.__message["done"])
         self.__get_albums()
 
 
@@ -171,48 +179,64 @@ class BandcampDL():
         album_urls = self.__get_album_urls(url, html)
         self.get_from_list(album_urls, out_path)
 
+    def get_from_file(self, path, out_path):
+        url_list = open(path, "r").read().split("\n")[:-1]
+        self.get_from_list(url_list, out_path)
+
+
             
 if __name__ == '__main__':
-    example_1 = "python3 bandcampdl.py https://ARTISTNAME.bandcamp.com/album/ALBUMNAME"
-    example_2 = "python3 bandcampdl.py -a https://ARTISTNAME.bandcamp.com"
-    example_3 = "python3 bandcampdl.py -f albumlist.txt -o ~/Music"
-    examples = "Examples:\n  {}\n  {}\n  {}".format(example_1, 
-                                                    example_2, 
-                                                    example_3)
-    parser = argparse.ArgumentParser(prog="bandcampdl",
-                                     description="Downloads albums from Bandcamp",
+    prog =          "bandcampdl"
+    description =   "Downloads albums from Bandcamp"
+    examples =      "Examples:\n"\
+                    "  python3 bandcampdl.py "\
+                    "https://ARTISTNAME.bandcamp.com/album/ALBUMNAME\n"\
+                    "  python3 bandcampdl.py -a "\
+                    "https://ARTISTNAME.bandcamp.com\n"\
+                    "  python3 bandcampdl.py -f "\
+                    "albumlist.txt -o ~/Music"
+
+    url_help =      "URL for a specific Bandcamp album"
+    file_help =     "file containing multiple Bandcamp album URLs"
+    artist_help =   "Bandcamp URL for an artist, "\
+                    "download all albums by artist"
+    out_help =      "base path to save albums into.\n"\
+                    "Files will be saved in the following format:\n"\
+                    "PATH/artist/album"
+    silent_help =   "Supress all non-error messages"
+
+    help_format = argparse.RawTextHelpFormatter
+    parser = argparse.ArgumentParser(prog=prog,
+                                     description=description,
                                      epilog=examples,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     formatter_class=help_format)
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("url", 
-                       type=str, 
-                       metavar="<ALBUM_URL>", 
+                       metavar="ALBUM_URL", 
                        nargs="?", 
-                       help="URL for a specific Bandcamp album")
+                       help=url_help)
     group.add_argument("-f", "--file",
-                        type=str,
-                        metavar="<FILE>",
-                        help="file containing multiple Bandcamp album URLs")
+                        metavar="FILE",
+                        help=file_help)
     group.add_argument("-a", "--artist",
-                       type=str,
-                       metavar="<ARTIST_URL>",
-                       help="Bandcamp URL for an artist, download all albums by artist")
+                       metavar="ARTIST_URL",
+                       help=artist_help)
     parser.add_argument("-o", "--out",
                         nargs="?",
-                        type=str,
-                        metavar="<PATH>",
+                        metavar="PATH",
                         default="./Music",
-                        help="""base path to save albums into.
-                        Files will be saved in the following format:
-                        <PATH>/artist/album""")
+                        help=out_help)
+    parser.add_argument("-s", "--silent",
+                        action="store_true",
+                        default=False,
+                        help=silent_help)
+                        
     args = parser.parse_args()
 
-
     if (args.url):
-        BandcampDL().get_from_list([args.url], args.out)
+        BandcampDL(args.silent).get_from_list([args.url], args.out)
     if (args.file):
-        url_list = open(args.file, "r").read().split("\n")[:-1]
-        BandcampDL().get_from_list(url_list, args.out)
+        BandcampDL(args.silent).get_from_file(args.file, args.out)
     if (args.artist):
-        BandcampDL().get_from_artist(args.artist, args.out)
+        BandcampDL(args.silent).get_from_artist(args.artist, args.out)
     exit(0)
